@@ -1,0 +1,33 @@
+server:
+  port: 8080
+spring:
+  application:
+    name: api-gateway
+  config:
+    import: "optional:configserver:http://localhost:8888"
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: false
+      routes:
+        - id: auth
+          uri: lb://identity-service
+          predicates: [ "Path=/auth/**" ]
+        - id: identity-admin
+          uri: lb://identity-service
+          predicates: [ "Path=/admin/**" ]
+        - id: customers
+          uri: lb://customer-service
+          predicates: [ "Path=/customers/**,/staff/**,/account-types/**" ]
+        - id: accounts
+          uri: lb://account-service
+          predicates: [ "Path=/accounts/**" ]
+        - id: transactions
+          uri: lb://transaction-service
+          predicates: [ "Path=/transfers/**,/transactions/**" ]
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka
