@@ -13,9 +13,92 @@ services:
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
   redis:
     image: redis:7-alpine
     ports: ["6379:6379"]
+  
+  config-server:
+    build:
+      context: .
+      args:
+        MODULE: config-server
+    ports: ["8888:8888"]
+    
+  eureka-server:
+    build:
+      context: .
+      args:
+        MODULE: eureka-server
+    ports: ["8761:8761"]
+
+  api-gateway:
+    build:
+      context: .
+      args:
+        MODULE: api-gateway
+    ports: ["8080:8080"]
+    depends_on: [config-server, eureka-server]
+    environment:
+      - SPRING_CONFIG_IMPORT=optional:configserver:http://config-server:8888
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+
+  identity-service:
+    build:
+      context: .
+      args:
+        MODULE: identity-service
+    ports: ["8081:8081"]
+    depends_on: [config-server, eureka-server]
+    environment:
+      - SPRING_CONFIG_IMPORT=optional:configserver:http://config-server:8888
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+
+  customer-service:
+    build:
+      context: .
+      args:
+        MODULE: customer-service
+    ports: ["8082:8082"]
+    depends_on: [config-server, eureka-server]
+    environment:
+      - SPRING_CONFIG_IMPORT=optional:configserver:http://config-server:8888
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+
+  account-service:
+    build:
+      context: .
+      args:
+        MODULE: account-service
+    ports: ["8083:8083"]
+    depends_on: [config-server, eureka-server, redis]
+    environment:
+      - SPRING_CONFIG_IMPORT=optional:configserver:http://config-server:8888
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+      - SPRING_REDIS_HOST=redis
+      - SPRING_REDIS_PORT=6379
+
+  transaction-service:
+    build:
+      context: .
+      args:
+        MODULE: transaction-service
+    ports: ["8084:8084"]
+    depends_on: [config-server, eureka-server]
+    environment:
+      - SPRING_CONFIG_IMPORT=optional:configserver:http://config-server:8888
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+
+  notification-service:
+    build:
+      context: .
+      args:
+        MODULE: notification-service
+    ports: ["8085:8085"]
+    depends_on: [config-server, eureka-server, kafka]
+    environment:
+      - SPRING_CONFIG_IMPORT=optional:configserver:http://config-server:8888
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
